@@ -218,6 +218,50 @@ input[type=range].tuner{width:100%;accent-color:#7fe08b;height:34px}
   #hud .chap{max-width:48vw;font-size:10px}
   .pill{font-size:10px;padding:4px 6px}
 }
+/* ---------- rotate prompt ---------- */
+#rotate{position:fixed;inset:0;z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;
+  background:radial-gradient(ellipse at center,#0f1a2b 0%,#03060c 75%)}
+#rotate.on{display:flex}
+#rotate .phone{width:62px;height:108px;border:4px solid var(--bone);border-radius:12px;position:relative;margin-bottom:34px;animation:turn 2.4s ease-in-out infinite}
+#rotate .phone::before{content:'';position:absolute;left:50%;bottom:6px;width:14px;height:4px;margin-left:-7px;background:var(--bone);border-radius:2px}
+#rotate .phone::after{content:'';position:absolute;left:50%;top:38%;width:18px;height:6px;margin-left:-9px;background:transparent;
+  box-shadow:-5px 0 0 0 #ff3b3b, 9px 0 0 0 #ff3b3b;width:6px;filter:drop-shadow(0 0 4px #ff2a2a)}
+@keyframes turn{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#rotate h2{font-family:var(--ui);font-weight:400;font-size:18px;margin:0 0 10px;color:var(--bone)}
+#rotate p{font-size:23px;color:var(--mute);margin:0 0 26px;max-width:28ch;line-height:1.15}
+#rotate .skip{background:none;border:0;font-family:var(--ui);font-size:11px;color:var(--mute);text-decoration:underline;padding:10px}
+
+/* ---------- phones held sideways (short screens) ---------- */
+@media (max-height:520px){
+  #box{min-height:92px;width:min(780px,74vw);bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  #por{width:76px}
+  #txtwrap{padding:8px 12px 10px}
+  #nm{font-size:10px;margin-bottom:3px}
+  #tx{font-size:21px;min-height:2.2em}
+  #hud{top:calc(6px + env(safe-area-inset-top,0px))}
+  #hud .chap,.pill{font-size:9px;padding:3px 6px}
+  #pauseBtn{width:28px;height:24px;font-size:10px}
+  #banner{top:calc(36px + env(safe-area-inset-top,0px));font-size:10px;padding:4px 10px}
+  #pad{width:104px;height:104px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  #knob{width:46px;height:46px;margin:-23px}
+  #act{width:78px;height:78px;bottom:calc(22px + env(safe-area-inset-bottom,0px));font-size:10px}
+  #choices{transform:translate(-50%,-50%);gap:6px}
+  #choices button{font-size:20px;padding:7px 12px}
+  .mpanel{max-height:94vh;overflow:auto;padding:10px 14px 12px}
+  #mini .mpanel{margin-top:0 !important}
+  .mpanel .hint{font-size:18px;margin-bottom:6px}
+  .freq{font-size:28px;padding:4px}
+  .dial b{width:56px;height:56px;font-size:30px}
+  .bigbtn{padding:14px 10px;margin-top:6px}
+  #toast{top:calc(64px + env(safe-area-inset-top,0px))}
+  #card .t{font-size:56px}
+  #title .logo{width:auto;max-width:100%;max-height:30vh}
+  #title .blurb{font-size:17px;margin:6px 0 10px;max-width:40ch}
+  #title .col{width:min(420px,62vw)}
+  #tapnote{display:none}
+  .menu button{font-size:14px;padding:2px 0}
+}
+
 @media (prefers-reduced-motion:reduce){
   #bg,#title .bg{animation:none}
   #stage.shake{animation:none}
@@ -349,6 +393,12 @@ input[type=range].tuner{width:100%;accent-color:#7fe08b;height:34px}
   </div>
 </section>
 
+<div id="rotate" role="dialog" aria-label="Turn your phone sideways">
+  <div class="phone"></div>
+  <h2>Turn your phone sideways</h2>
+  <p>The Watcher plays best in landscape. Rotate your phone and the forest will be waiting.</p>
+  <button class="skip" id="rotSkip">Play upright anyway</button>
+</div>
 <div id="card"><div class="k" id="cardK"></div><div class="t" id="cardT"></div><div class="tip">Tap to continue</div></div>
 <div id="scare"><img class="pix" id="scareImg" alt=""></div>
 
@@ -1127,6 +1177,7 @@ function layout(){
   let s;
   // phones in portrait: a taller "zoomed" view that pans with the player; everything else: whole scene visible
   if (portrait){ s = Math.min((vh*0.5) / W.nh, (vw*1.7) / W.nw); s = Math.max(s, vw / W.nw); }
+  else if (vh <= 520){ s = vh / W.nh; } // phone sideways: fill the height, pan sideways if wider
   else { s = Math.min(vw / W.nw, vh / W.nh); }
   W.s = s; W.ww = W.nw*s; W.wh = W.nh*s;
   W.wy = portrait ? top + Math.max(0, (vh*0.56 - top - W.wh)/2) : (vh - W.wh)/2;
@@ -1602,13 +1653,13 @@ function gRun(g, done){
    MENUS
    ========================================================= */
 function startStory(fromSave){
-  initAudio(); gameActive = true;
+  initAudio(); tryLandscape(); gameActive = true;
   const sv = store.get('save', null);
   if (fromSave && sv){ S = Object.assign(fresh(), sv.S); show('game'); go(sv.node); }
   else { S = fresh(); show('game'); $('bg').removeAttribute('data-k'); go('c1'); }
 }
 function startChapter(n){
-  initAudio(); gameActive = true;
+  initAudio(); tryLandscape(); gameActive = true;
   const p = PRESET[n]; S = Object.assign(fresh(), JSON.parse(JSON.stringify(p)));
   S.flags = Object.assign({}, p.flags||{}); show('game'); go('c'+n);
 }
@@ -1682,6 +1733,27 @@ window.addEventListener('keydown', e => {
 });
 /* first gesture wakes audio */
 document.addEventListener('pointerdown', () => { initAudio(); if (!A.mood && $('title').classList.contains('on')) setMusic('title'); $('tapnote').style.display='none'; }, {once:true});
+
+/* rotate-your-phone prompt (touch devices held upright) */
+let rotDismissed = false;
+const isTouch = () => matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+function checkRotate(){
+  const upright = innerHeight > innerWidth;
+  $('rotate').classList.toggle('on', isTouch() && upright && !rotDismissed);
+}
+function tryLandscape(){
+  if (!isTouch()) return;
+  const el = document.documentElement;
+  const lock = () => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); } catch(e){} };
+  try {
+    if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({navigationUI:'hide'}).then(lock).catch(()=>{});
+    else lock();
+  } catch(e){}
+}
+$('rotSkip').onclick = e => { e.stopPropagation(); rotDismissed = true; checkRotate(); };
+window.addEventListener('resize', checkRotate);
+window.addEventListener('orientationchange', () => setTimeout(checkRotate, 200));
+checkRotate();
 
 /* boot */
 document.documentElement.style.setProperty('--sheet', `url(${IMG.sprites})`);
